@@ -1391,6 +1391,7 @@
 				15415AB019A71A53004F1E71 /* except.h in Headers */,
 				5B86190B2178D68900C8C1CD /* lcode.h in Headers */,
 				ED1AA90C215DF5F3004ABA9F /* lua_downloader.h in Headers */,
+				5B86190B2178D68900C8C1CD /* lcode.h in Headers */,
 				3E2BDB0B19C5E6100055CDCD /* lua_cocos2dx_audioengine_manual.h in Headers */,
 				155C7E0519A71C6F00F08B25 /* lua_cocos2dx_cocosbuilder_manual.h in Headers */,
 				15415ACC19A71A53004F1E71 /* socket.h in Headers */,
@@ -1489,6 +1490,7 @@
 				507B43221C31FA0C0067B53E /* except.h in Headers */,
 				5B86190C2178D68900C8C1CD /* lcode.h in Headers */,
 				ED1AA90D215DF5F3004ABA9F /* lua_downloader.h in Headers */,
+				5B86190C2178D68900C8C1CD /* lcode.h in Headers */,
 				507B43231C31FA0C0067B53E /* lua_cocos2dx_audioengine_manual.h in Headers */,
 				507B43241C31FA0C0067B53E /* lua_cocos2dx_cocosbuilder_manual.h in Headers */,
 				507B43251C31FA0C0067B53E /* socket.h in Headers */,
@@ -2048,7 +2050,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../../.. $(SRCROOT)/../../.. $(SRCROOT)/../../../base $(SRCROOT)/../../../3d $(SRCROOT)/../../../2d $(SRCROOT)/../../../deprecated $(SRCROOT)/../../../physics $(SRCROOT)/../../../2d/platform $(SRCROOT)/../../../audio/include $(SRCROOT)/../../../editor-support $(SRCROOT)/../../../editor-support/spine $(SRCROOT)/../../../editor-support/cocostudio $(SRCROOT)/../../../editor-support/cocosbuilder $(SRCROOT)/../../../ui $(SRCROOT)/../../../storage $(SRCROOT)/../../../../extensions $(SRCROOT)/../../../../external $(SRCROOT)/../../../../external/chipmunk/include $(SRCROOT)/../../../../external/lua $(SRCROOT)/../../../../external/lua/luajit/include $(SRCROOT)/../../../../external/lua/tolua $(SRCROOT)/../../../editor-support/cocostudio/ActionTimeline $(SRCROOT)/../../../physics3d $(SRCROOT)/../../../navmesh $(SRCROOT)/../../../../external/bullet/include/bullet $(SRCROOT)/../../../../external/bullet/include";
+				USER_HEADER_SEARCH_PATHS = "$(SRCROOT)/../../../.. $(SRCROOT)/../../.. $(SRCROOT)/../../../base $(SRCROOT)/../../../3d $(SRCROOT)/../../../2d $(SRCROOT)/../../../deprecated $(SRCROOT)/../../../physics $(SRCROOT)/../../../2d/platform $(SRCROOT)/../../../audio/include $(SRCROOT)/../../../editor-support $(SRCROOT)/../../../editor-support/spine $(SRCROOT)/../../../editor-support/cocostudio $(SRCROOT)/../../../editor-support/cocosbuilder $(SRCROOT)/../../../ui $(SRCROOT)/../../../storage $(SRCROOT)/../../../../extensions $(SRCROOT)/../../../../external $(SRCROOT)/../../../../external/chipmunk/include $(SRCROOT)/../../../../external/lua $(SRCROOT)/../../../../../../../3rd/lua_5_3 $(SRCROOT)/../../../../external/lua/tolua $(SRCROOT)/../../../editor-support/cocostudio/ActionTimeline $(SRCROOT)/../../../physics3d $(SRCROOT)/../../../navmesh $(SRCROOT)/../../../../external/bullet/include/bullet $(SRCROOT)/../../../../external/bullet/include";
 				VALID_ARCHS = x86_64;
 			};
 			name = Debug;
