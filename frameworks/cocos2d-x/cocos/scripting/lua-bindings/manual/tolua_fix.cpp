@@ -1,18 +1,18 @@
 /****************************************************************************
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
- 
+
  http://www.cocos2d-x.org
- 
+
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
  in the Software without restriction, including without limitation the rights
  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  copies of the Software, and to permit persons to whom the Software is
  furnished to do so, subject to the following conditions:
- 
+
  The above copyright notice and this permission notice shall be included in
  all copies or substantial portions of the Software.
- 
+
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -58,7 +58,7 @@ TOLUA_API int toluafix_pushusertype_ccobject(lua_State* L,
         lua_pushnil(L);
         return -1;
     }
-    
+
     Ref* vPtr = static_cast<Ref*>(ptr);
     const char* vType = getLuaTypeName(vPtr, type);
 
@@ -85,7 +85,7 @@ TOLUA_API int toluafix_pushusertype_ccobject(lua_State* L,
     }
 
     tolua_pushusertype_and_addtoroot(L, vPtr, vType);
-    
+
     return 0;
 }
 
@@ -150,8 +150,8 @@ TOLUA_API int toluafix_remove_ccobject_by_refid(lua_State* L, int refid)
         lua_pushstring(L, "tolua_ubox");                            /* stack: mt key */
         lua_rawget(L, LUA_REGISTRYINDEX);                           /* stack: mt ubox */
     };
-    
-    
+
+
     // cleanup root
     tolua_remove_value_from_root(L, ptr);
 
@@ -167,7 +167,11 @@ TOLUA_API int toluafix_remove_ccobject_by_refid(lua_State* L, int refid)
 
     // cleanup peertable
     lua_pushvalue(L, LUA_REGISTRYINDEX);
-    lua_setfenv(L, -2);
+#if LUA_VERSION_NUM > 501
+    lua_setuservalue(L, -2); /* stack: k,v,table */
+#else
+    lua_setfenv(L, -2); /* stack: k,v,table */
+#endif
 
     ud = (void**)lua_touserdata(L, -1);
     lua_pop(L, 1);                                                  /* stack: mt ubox */
