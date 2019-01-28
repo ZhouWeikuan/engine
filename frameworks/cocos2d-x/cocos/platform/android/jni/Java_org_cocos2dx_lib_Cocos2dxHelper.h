@@ -27,6 +27,9 @@ THE SOFTWARE.
 #define __Java_org_cocos2dx_lib_Cocos2dxHelper_H__
 
 #include <string>
+#include "cocos2d.h"
+
+USING_NS_CC;
 
 typedef void (*EditTextCallback)(const char* text, void* ctx);
 
@@ -37,5 +40,58 @@ extern void conversionEncodingJNI(const char* src, int byteSize, const char* fro
 
 extern int getDeviceSampleRate();
 extern int getDeviceAudioBufferSizeInFrames();
+
+#pragma mark - cronlygames
+/* CronlyGames Inc. All Right Reserved here */
+extern std::string getDeviceIdJNI();
+extern std::string getDeviceModelJNI();
+
+extern bool isNetworkOpenJNI(bool showOpenWiFiDlg = false);
+extern std::string getNetworkTypeJNI();
+extern float getBatteryLevelJNI();
+
+extern bool isAppInstalledJNI(const char * packageName);
+extern void openUrlJNI(const char * pUrlStr);
+extern void openAppJNI(const char * pStr);
+
+extern std::string getIpAddressJNI();
+
+extern void copyFileToSDCardJNI(const std::string &filename);
+extern void shareFileJNI(const std::string &filename);
+
+extern void startLocationJNI();
+extern void stopLocationJNI();
+extern std::string getLocationJNI(double & longitude, double &latitude, double & altitude);
+
+extern void startRecordJNI(const std::string & file);
+extern void stopRecordJNI();
+extern void playVoiceJNI(const std::string & file);
+extern bool isVoicePlayingJNI();
+
+extern void checkUpdateJNI(const char * packageName);
+extern void registerNotificationsJNI(const std::string & msg, const std::string & act);
+extern void checkNotificationsJNI();
+
+class CCDialogCallBack {
+public:
+    enum {
+        kDialog_Confirm = 0,
+        kDialog_Negative = 1,
+    };
+
+
+    virtual void dialogCallBackWithReturnValue(int ret) = 0;
+
+public:
+    int         m_oldCount;
+    Ref    *    m_refObj;
+};
+
+
+extern void showOptionDialog(Ref * obj, CCDialogCallBack * callback, const std::string &title, const std::string &message,
+        const std::string& posAns="", const std::string &negAns="");
+extern void showOptionDialogJNI(void * callback, const char * pTitle, const char * pMessage, const char * posAns, const char * negAns);
+
+/* CronlyGames Inc. All Right Reserved here */
 
 #endif /* __Java_org_cocos2dx_lib_Cocos2dxHelper_H__ */

@@ -37,7 +37,7 @@ LOCAL_MODULE_FILENAME := libluacc
 
 LOCAL_ARM_MODE := arm
 
-LUASRC := $(LOCAL_PATH)/../../../../../../../3rd/lua
+LUASRC := $(LOCAL_PATH)/../../../../../../../3rd/lua_5_3
 
 LOCAL_SRC_FILES := ../manual/CCLuaBridge.cpp \
           ../manual/CCLuaEngine.cpp \
@@ -231,5 +231,7 @@ LOCAL_EXPORT_CFLAGS += -DLUA_COMPAT_APIINTCASTS
 
 include $(BUILD_STATIC_LIBRARY)
 
-$(call import-module,$(LUA_IMPORT_PATH))
+$(call import-add-path,$(LOCAL_PATH)/../../../..)
+$(call import-add-path,$(LOCAL_PATH)/../../../../external)
 $(call import-module, cocos)
+

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="NetworkNotAvailable">网络不可用</string>
+    <string name="DoYouWantToSetupNetwork">是否对网络进行设置？</string>
+    <string name="Yes">确认</string>
+    <string name="No">取消</string>
+    <string name="OK">好的</string>
+    <string name="share_game">分享游戏</string>
+    <string name="share_hello">你好, 这个游戏 </string>
+    <string name="share_title">最好的游戏</string>
+    <string name="share_please_choose">请选择..</string>
+</resources>

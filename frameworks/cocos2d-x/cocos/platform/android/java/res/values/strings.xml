@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="NetworkNotAvailable">No available network</string>
+    <string name="DoYouWantToSetupNetwork">Do you want to set up the network?</string>
+    <string name="Yes">Yes</string>
+    <string name="No">No</string>
+    <string name="OK">OK</string>
+    <string name="share_game">Share Game</string>
+    <string name="share_hello">Hello, </string>
+    <string name="share_title">My Favorite Game</string>
+    <string name="share_please_choose">Please Choose </string>
+</resources>

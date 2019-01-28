@@ -25,25 +25,51 @@ THE SOFTWARE.
  ****************************************************************************/
 package org.cocos2dx.lib;
 
-import android.content.pm.PackageManager;
-import android.media.AudioManager;
+import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
+import android.location.Address;
+import android.location.Criteria;
+import android.location.Geocoder;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
+import android.media.MediaRecorder;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.ParcelFileDescriptor;
 import android.os.Vibrator;
 import android.preference.PreferenceManager.OnActivityResultListener;
+import android.provider.Settings;
+import android.telephony.TelephonyManager;
+import android.text.format.Formatter;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Display;
@@ -51,23 +77,39 @@ import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import android.view.ViewConfiguration;
 import android.view.WindowManager;
+import android.widget.Toast;
 
 import com.android.vending.expansion.zipfile.APKExpansionSupport;
 import com.android.vending.expansion.zipfile.ZipResourceFile;
-
 import com.enhance.gameservice.IGameTuningService;
+import com.loopj.android.http.HttpGet;
 
-import java.io.IOException;
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FilenameFilter;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
+import cz.msebera.android.httpclient.HttpEntity;
+import cz.msebera.android.httpclient.HttpResponse;
+import cz.msebera.android.httpclient.client.HttpClient;
+import cz.msebera.android.httpclient.impl.client.DefaultHttpClient;
 
 public class Cocos2dxHelper {
     // ===========================================================
@@ -100,7 +142,7 @@ public class Cocos2dxHelper {
 
     // The absolute path to the OBB if it exists, else the absolute path to the APK.
     private static String sAssetsPath = "";
-    
+
     // The OBB file
     private static ZipResourceFile sOBBFile = null;
 
@@ -153,19 +195,19 @@ public class Cocos2dxHelper {
             nativeSetAudioDeviceInfo(isSupportLowLatency, sampleRate, bufferSizeInFrames);
 
             final ApplicationInfo applicationInfo = activity.getApplicationInfo();
-            
+
             Cocos2dxHelper.sPackageName = applicationInfo.packageName;
 
             Cocos2dxHelper.sCocos2dMusic = new Cocos2dxMusic(activity);
             Cocos2dxHelper.sAssetManager = activity.getAssets();
             Cocos2dxHelper.nativeSetContext((Context)activity, Cocos2dxHelper.sAssetManager);
-    
+
             Cocos2dxBitmap.setContext(activity);
 
             Cocos2dxHelper.sVibrateService = (Vibrator)activity.getSystemService(Context.VIBRATOR_SERVICE);
 
             sInited = true;
-            
+
             //Enhance API modification begin
             Intent serviceIntent = new Intent(IGameTuningService.class.getName());
             serviceIntent.setPackage("com.enhance.gameservice");
@@ -173,7 +215,7 @@ public class Cocos2dxHelper {
             //Enhance API modification end
         }
     }
-    
+
     // This function returns the absolute path to the OBB if it exists,
     // else it returns the absolute path to the APK.
     public static String getAssetsPath()
@@ -199,10 +241,10 @@ public class Cocos2dxHelper {
             else
                 Cocos2dxHelper.sAssetsPath = Cocos2dxHelper.sActivity.getApplicationInfo().sourceDir;
         }
-        
+
         return Cocos2dxHelper.sAssetsPath;
     }
-    
+
     public static ZipResourceFile getObbFile() {
         if (null == sOBBFile) {
             int versionCode = 1;
@@ -221,7 +263,7 @@ public class Cocos2dxHelper {
 
         return sOBBFile;
     }
-    
+
     //Enhance API modification begin
     private static ServiceConnection connection = new ServiceConnection() {
         public void onServiceConnected(ComponentName name, IBinder service) {
@@ -234,19 +276,19 @@ public class Cocos2dxHelper {
         }
     };
     //Enhance API modification end
-    
+
     public static Activity getActivity() {
         return sActivity;
     }
-    
+
     public static void addOnActivityResultListener(OnActivityResultListener listener) {
         onActivityResultListeners.add(listener);
     }
-    
+
     public static Set<OnActivityResultListener> getOnActivityResultListeners() {
         return onActivityResultListeners;
     }
-    
+
     public static boolean isActivityVisible(){
         return sActivityVisible;
     }
@@ -269,6 +311,11 @@ public class Cocos2dxHelper {
 
     private static native void nativeSetAudioDeviceInfo(boolean isSupportLowLatency, int deviceSampleRate, int audioBufferSizeInFames);
 
+    private static final int kDialog_Confirm = 0;
+    private static final int kDialog_Negative = 1;
+
+    private static native void nativeShowOptionDialogResult(final long listener, final int result);
+
     public static String getCocos2dxPackageName() {
         return Cocos2dxHelper.sPackageName;
     }
@@ -279,7 +326,7 @@ public class Cocos2dxHelper {
     public static String getCurrentLanguage() {
         return Locale.getDefault().getLanguage();
     }
-    
+
     public static String getDeviceModel(){
         return Build.MODEL;
     }
@@ -315,16 +362,16 @@ public class Cocos2dxHelper {
         sVibrateService.vibrate((long)(duration * 1000));
     }
 
- 	public static String getVersion() {
- 		try {
- 			String version = Cocos2dxActivity.getContext().getPackageManager().getPackageInfo(Cocos2dxActivity.getContext().getPackageName(), 0).versionName;
- 			return version;
- 		} catch(Exception e) {
- 			return "";
- 		}
- 	}
+    public static String getVersion() {
+        try {
+            String version = Cocos2dxActivity.getContext().getPackageManager().getPackageInfo(Cocos2dxActivity.getContext().getPackageName(), 0).versionName;
+            return version;
+        } catch(Exception e) {
+            return "";
+        }
+    }
 
-    public static boolean openURL(String url) { 
+    public static boolean openURL(String url) {
         boolean ret = false;
         try {
             Intent i = new Intent(Intent.ACTION_VIEW);
@@ -335,7 +382,7 @@ public class Cocos2dxHelper {
         }
         return ret;
     }
-    
+
     public static long[] getObbAssetFileDescriptor(final String path) {
         long[] array = new long[3];
         if (Cocos2dxHelper.getObbFile() != null) {
@@ -461,6 +508,10 @@ public class Cocos2dxHelper {
         if (Cocos2dxHelper.sCompassEnabled) {
             Cocos2dxHelper.getAccelerometer().enableCompass();
         }
+
+        IntentFilter mIntentFilter = new IntentFilter();
+        mIntentFilter.addAction(Intent.ACTION_BATTERY_CHANGED);
+        sActivity.registerReceiver(mIntentReceiver, mIntentFilter);
     }
 
     public static void onPause() {
@@ -468,18 +519,24 @@ public class Cocos2dxHelper {
         if (Cocos2dxHelper.sAccelerometerEnabled) {
             Cocos2dxHelper.getAccelerometer().disable();
         }
+
+        try {
+            sActivity.unregisterReceiver(mIntentReceiver);
+        } catch (Exception e) {
+
+        }
     }
 
     public static void onEnterBackground() {
         getSound().onEnterBackground();
         sCocos2dMusic.onEnterBackground();
     }
-    
+
     public static void onEnterForeground() {
         getSound().onEnterForeground();
         sCocos2dMusic.onEnterForeground();
     }
-    
+
     public static void terminateProcess() {
         android.os.Process.killProcess(android.os.Process.myPid());
     }
@@ -522,11 +579,11 @@ public class Cocos2dxHelper {
         }
         return -1;
     }
-    
+
     // ===========================================================
     // Functions for CCUserDefault
     // ===========================================================
-    
+
     public static boolean getBoolForKey(String key, boolean defaultValue) {
         SharedPreferences settings = sActivity.getSharedPreferences(Cocos2dxHelper.PREFS_NAME, 0);
         try {
@@ -555,7 +612,7 @@ public class Cocos2dxHelper {
 
         return defaultValue;
     }
-    
+
     public static int getIntegerForKey(String key, int defaultValue) {
         SharedPreferences settings = sActivity.getSharedPreferences(Cocos2dxHelper.PREFS_NAME, 0);
         try {
@@ -583,7 +640,7 @@ public class Cocos2dxHelper {
 
         return defaultValue;
     }
-    
+
     public static float getFloatForKey(String key, float defaultValue) {
         SharedPreferences settings = sActivity.getSharedPreferences(Cocos2dxHelper.PREFS_NAME, 0);
         try {
@@ -611,12 +668,12 @@ public class Cocos2dxHelper {
 
         return defaultValue;
     }
-    
+
     public static double getDoubleForKey(String key, double defaultValue) {
         // SharedPreferences doesn't support saving double value
         return getFloatForKey(key, (float) defaultValue);
     }
-    
+
     public static String getStringForKey(String key, String defaultValue) {
         SharedPreferences settings = sActivity.getSharedPreferences(Cocos2dxHelper.PREFS_NAME, 0);
         try {
@@ -624,32 +681,32 @@ public class Cocos2dxHelper {
         }
         catch (Exception ex) {
             ex.printStackTrace();
-            
+
             return settings.getAll().get(key).toString();
         }
     }
-    
+
     public static void setBoolForKey(String key, boolean value) {
         SharedPreferences settings = sActivity.getSharedPreferences(Cocos2dxHelper.PREFS_NAME, 0);
         SharedPreferences.Editor editor = settings.edit();
         editor.putBoolean(key, value);
         editor.apply();
     }
-    
+
     public static void setIntegerForKey(String key, int value) {
         SharedPreferences settings = sActivity.getSharedPreferences(Cocos2dxHelper.PREFS_NAME, 0);
         SharedPreferences.Editor editor = settings.edit();
         editor.putInt(key, value);
         editor.apply();
     }
-    
+
     public static void setFloatForKey(String key, float value) {
         SharedPreferences settings = sActivity.getSharedPreferences(Cocos2dxHelper.PREFS_NAME, 0);
         SharedPreferences.Editor editor = settings.edit();
         editor.putFloat(key, value);
         editor.apply();
     }
-    
+
     public static void setDoubleForKey(String key, double value) {
         // SharedPreferences doesn't support recording double value
         SharedPreferences settings = sActivity.getSharedPreferences(Cocos2dxHelper.PREFS_NAME, 0);
@@ -657,14 +714,14 @@ public class Cocos2dxHelper {
         editor.putFloat(key, (float)value);
         editor.apply();
     }
-    
+
     public static void setStringForKey(String key, String value) {
         SharedPreferences settings = sActivity.getSharedPreferences(Cocos2dxHelper.PREFS_NAME, 0);
         SharedPreferences.Editor editor = settings.edit();
         editor.putString(key, value);
         editor.apply();
     }
-    
+
     public static void deleteValueForKey(String key) {
         SharedPreferences settings = sActivity.getSharedPreferences(Cocos2dxHelper.PREFS_NAME, 0);
         SharedPreferences.Editor editor = settings.edit();
@@ -683,7 +740,730 @@ public class Cocos2dxHelper {
 
         return null;
     }
-    
+
+    /* CronlyGames Inc. All Right Reserved here */
+
+    public static String saveDeviceId = null;
+    public static String getDeviceId() {
+        String deviceId = saveDeviceId;
+        if (deviceId != null) {
+            return deviceId;
+        }
+
+        if (deviceId == null) {
+            try {
+                String sdkVersion = Build.VERSION.SDK;
+                if (Integer.valueOf(sdkVersion) >= 9 ) {
+                    Field f = Build.class.getField("SERIAL");
+                    deviceId = (String)f.get(Build.class);
+                }
+            } catch (Exception e) {
+                deviceId = null;
+            }
+        }
+        if (deviceId == null) {
+            deviceId = Settings.Secure.getString(sActivity.getContentResolver(), Settings.Secure.ANDROID_ID);
+        }
+        if ("9774d56d682e549c".equals(deviceId) || deviceId == null) {
+            deviceId = ((TelephonyManager) sActivity.getSystemService(Context.TELEPHONY_SERVICE )).getDeviceId();
+        }
+        if (deviceId == null) {
+            deviceId = UUID.randomUUID().toString();
+        }
+
+        saveDeviceId = deviceId;
+
+        return deviceId;
+    }
+
+    public static void openUrl(String str) {
+        try {
+            Uri uri = Uri.parse(str);
+            Intent it = new Intent(Intent.ACTION_VIEW,uri);
+            sActivity.startActivity(it);
+        } catch (Exception e) {
+
+        }
+    }
+
+    public static void openApp(String packageId) {
+        try {
+            PackageManager packageManager = sActivity.getPackageManager();
+            Intent it = packageManager.getLaunchIntentForPackage(packageId);
+            sActivity.startActivity(it);
+        } catch (Exception e) {
+
+        }
+    }
+
+    public static boolean isAppInstalled(String packageName) {
+        PackageInfo packinfo = null;
+        try {
+            packinfo = sActivity.getPackageManager().getPackageInfo(packageName, 0);
+        } catch (NameNotFoundException e) {
+            // TODO Auto-generated catch block
+            packinfo = null;
+        }
+
+        return packinfo != null;
+    }
+
+    public static void showWiFiDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(sActivity);
+        builder.setTitle(R.string.NetworkNotAvailable);
+        builder.setMessage(R.string.DoYouWantToSetupNetwork);
+
+        builder.setPositiveButton(R.string.Yes, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                Intent intent = null;
+
+                try {
+                    String sdkVersion = android.os.Build.VERSION.SDK;
+                    if(Integer.valueOf(sdkVersion) > 10) {
+                        intent = new Intent(android.provider.Settings.ACTION_WIFI_SETTINGS);
+                    }else {
+                        intent = new Intent("android.settings.WIFI_SETTINGS");
+                    }
+                    sActivity.startActivity(intent);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                dialog.dismiss();
+            }
+        }).setNegativeButton(R.string.No, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.cancel();
+            }
+        }).show();
+    }
+
+    public static boolean isNetworkOpen(boolean bShowDialog) {
+        boolean bNetworkOpen = false;
+        ConnectivityManager connManager = (ConnectivityManager)sActivity.getSystemService(Context.CONNECTIVITY_SERVICE);
+        if(connManager.getActiveNetworkInfo() != null) {
+            bNetworkOpen = connManager.getActiveNetworkInfo().isAvailable();
+        }
+
+        if (!bShowDialog) {
+            return bNetworkOpen;
+        } else if (!bNetworkOpen) {
+            // show open wifi dialog
+            Cocos2dxActivity app =  (Cocos2dxActivity)sActivity;
+            app.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    // TODO Auto-generated method stub
+                    Cocos2dxHelper.showWiFiDialog();
+                }
+            });
+        }
+
+        return bNetworkOpen;
+    }
+
+    public static void doShowOptionDiloag(long callback, String title, String message, String PosAns, String NegAns) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(sActivity);
+        builder.setTitle(title);
+        builder.setMessage(message);
+
+        if (PosAns.length() <= 1) {
+            PosAns = sActivity.getString(R.string.Yes);
+        }
+
+        if (NegAns.length() <= 1) {
+            NegAns = sActivity.getString(R.string.No);
+        }
+
+        final long cb = callback;
+        builder.setPositiveButton(PosAns, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                Cocos2dxHelper.nativeShowOptionDialogResult(cb, kDialog_Confirm);
+                dialog.dismiss();
+            }
+        }).setNegativeButton(NegAns, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                Cocos2dxHelper.nativeShowOptionDialogResult(cb, kDialog_Negative);
+
+                dialog.cancel();
+            }
+        }).show();
+    }
+
+    public static void showOptionDialog(long callback, String title, String message, String PosAns, String NegAns) {
+        final String tStr = title;
+        final String mStr = message;
+        final String pStr = PosAns;
+        final String nStr = NegAns;
+
+        final long cb = callback;
+
+        Cocos2dxActivity app =  (Cocos2dxActivity)sActivity;
+        app.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Cocos2dxHelper.doShowOptionDiloag(cb, tStr, mStr, pStr, nStr);
+            }
+        });
+    }
+
+    @SuppressWarnings("deprecation")
+    public static String getWiFiIPAddress() {
+        String ret = null;
+        try {
+            WifiManager wifiMgr = (WifiManager)sActivity.getSystemService(Context.WIFI_SERVICE);
+            WifiInfo wifiInfo = wifiMgr.getConnectionInfo();
+            int ip = wifiInfo.getIpAddress();
+            ret = Formatter.formatIpAddress(ip);
+        } catch (Exception e) {
+            ret = "127.0.0.1";
+        }
+
+        return ret;
+    }
+
+    @SuppressLint("SdCardPath")
+    public static void copyFileToSDCard(String filename) {
+        String newPath = "/mnt/sdcard/" + filename;
+        String oldPath = sActivity.getFilesDir().toString() + "/" + filename;
+
+        try {
+            InputStream is = new FileInputStream(oldPath);
+            FileOutputStream os = new FileOutputStream(newPath);
+            byte[] buffer = new byte[1024];
+            int count = 0;
+            while ((count = is.read(buffer)) > 0) {
+                os.write(buffer, 0, count);
+            }
+            is.close();
+            os.close();
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+    }
+
+    public static void shareFile(String content) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_SEND);
+            JSONObject res = new JSONObject(content);
+
+            int mediaType = res.getInt("mediaType");
+            if (mediaType == 0 || mediaType == 2) {
+                intent.setType("text/plain");
+
+                String text = "";
+                if (res.has("title")) {
+                    String str = res.getString("title");
+                    text = text + str + "\n";
+                }
+
+                if (res.has("text")) {
+                    String str = res.getString("text");
+                    text = text + str + "\n";
+                }
+
+                if (res.has("url")) {
+                    String str = res.getString("url");
+                    text = text + str;
+                }
+                intent.putExtra(Intent.EXTRA_TEXT, text);
+            } else {
+                intent.setType("image/*");
+
+                String imagePath = res.getString("imagePath");
+                if (imagePath == null || imagePath.isEmpty()) {
+                    final String desc = "分享信息里没有设置 imagePath";
+                    OpenSDK.invokeCallback(OpenSDK.TYPE_LISTENER_SHARE, 1, desc);
+                    return;
+                }
+
+                if (res.has("title")) {
+                    String title = res.getString("title");
+                    if (title != null) {
+                        intent.putExtra(Intent.EXTRA_SUBJECT, title);
+                    }
+                }
+
+                if (res.has("text")) {
+                    String text = res.getString("text");
+                    if (text != null) {
+                        intent.putExtra(Intent.EXTRA_TEXT, text);
+                    }
+                }
+
+                File file = new File(imagePath);
+                Uri uri = Uri.fromFile(file);
+                intent.putExtra(Intent.EXTRA_STREAM, uri);
+            }
+
+            String s = sActivity.getString(R.string.share_title);
+            intent.putExtra(Intent.EXTRA_TITLE, s);
+
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+            s = sActivity.getString(R.string.share_please_choose);
+            sActivity.startActivity(Intent.createChooser(intent, s));
+        } catch (Exception e) {
+            final String desc = e.toString();
+            Log.e(TAG, desc);
+            OpenSDK.invokeCallback(OpenSDK.TYPE_LISTENER_SHARE, 1, desc);
+        }
+    }
+
+
+    private static double loc_longitude = 0;
+    private static double loc_latitude 	= 0;
+    private static double loc_altitude 	= 0;
+    private static String loc_address   = "";
+
+    public static void startLocation () {
+        Activity act = sActivity;
+        act.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                do_startLocation();
+            }
+        });
+    }
+
+    private static void do_startLocation () {
+        Activity act = sActivity;
+
+        if (Looper.myLooper() == null) {
+            Looper.prepare();
+        }
+
+        LocationManager lm = (LocationManager) act.getSystemService(Context.LOCATION_SERVICE);
+        if (lm != null && (lm.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                    lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER) ||
+                    lm.isProviderEnabled(LocationManager.PASSIVE_PROVIDER))) {
+            queryLocation();
+        } else {
+            Toast.makeText(act, "请开启GPS！", Toast.LENGTH_SHORT).show();
+            Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+            act.startActivityForResult(intent, 0);
+        }
+    }
+
+    private static LocationListener llistener = new LocationListener() {
+        @Override
+        public void onLocationChanged(Location loc) {
+            getAddress(loc);
+        }
+
+        @Override
+        public void onProviderDisabled(String arg0) {
+        }
+
+        @Override
+        public void onProviderEnabled(String arg0) {
+        }
+
+        @Override
+        public void onStatusChanged(String arg0, int arg1, Bundle arg2) {
+        }
+    };
+
+    private static void queryLocation() {
+        new Thread(){
+            public void run () {
+                if (Looper.myLooper() == null) {
+                    Looper.prepare();
+                }
+                doQueryLocation();
+            }
+        }.start();
+    }
+
+    private static void doQueryLocation() {
+        Map<String, Location> map = getLocationObject(llistener);
+
+        Iterator<String> iter = map.keySet().iterator();
+        while (iter.hasNext()) {
+            String key = iter.next();
+            Location loc = map.get(key);
+
+            getAddress(loc);
+        }
+    }
+
+    private static Map<String, Location> getLocationObject(
+            LocationListener locationListener) {
+        Map<String, Location> lMap = new HashMap<>();
+
+        Activity act = sActivity;
+        LocationManager locationManager = (LocationManager) act
+            .getSystemService(Context.LOCATION_SERVICE);
+
+        Criteria criteria = new Criteria();
+        // 获得最好的定位效果
+        try {
+            criteria.setAccuracy(Criteria.ACCURACY_HIGH);
+        } catch (Exception e) {
+            criteria.setAccuracy(Criteria.ACCURACY_FINE);
+        }
+        criteria.setAltitudeRequired(true);
+        criteria.setBearingRequired(false);
+        criteria.setCostAllowed(false);
+        // 使用省电模式
+        criteria.setPowerRequirement(Criteria.POWER_LOW);
+
+        final long minTime = 60;
+        final long minDis = 100;
+
+        for (final String provider : locationManager.getProviders(true)) {
+            Location l = locationManager.getLastKnownLocation(provider);
+            if (null != l) {
+                lMap.put(provider, l);
+            }
+            locationManager.requestLocationUpdates(provider, minTime, minDis,
+                    locationListener);
+        }
+        return lMap;
+    }
+
+    private static String getAddress(Location loc) {
+        String address = null;
+
+        Activity act = sActivity;
+        if (loc == null) {
+            return address;
+        }
+
+        loc_longitude = loc.getLongitude();
+        loc_latitude = loc.getLatitude();
+        loc_altitude = loc.getAltitude();
+
+        Geocoder mGeocoder = new Geocoder(act);
+
+        // 得到逆理编码，参数分别为：纬度，经度，最大结果集
+        // 高德根据政府规定，在由GPS获取经纬度显示时，使用getFromRawGpsLocation()方法;
+        List<Address> listAddress = null;
+        try {
+            listAddress = mGeocoder.getFromLocation(loc_latitude,
+                    loc_longitude, 1);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        if (listAddress != null && listAddress.size() != 0) {
+            Address a = listAddress.get(0);
+
+            StringBuilder sb = new StringBuilder();
+            if (a.getCountryName() != null) {
+                sb.append(a.getCountryName());
+            }
+
+            String one = a.getLocality();
+            if (one == null) {
+                one = a.getAdminArea();
+            }
+            if (one != null) {
+                sb.append(one);
+            }
+
+            one = a.getSubLocality();
+            if (one == null) {
+                one = a.getSubAdminArea();
+            }
+            if (one != null) {
+                sb.append(one);
+            }
+
+            one = a.getSubThoroughfare();
+            if (one == null) {
+                one = a.getThoroughfare();
+            } else {
+                if (a.getThoroughfare() != null) {
+                    one = a.getThoroughfare() + one;
+                }
+            }
+            if (one == null) {
+                one = a.getFeatureName();
+            }
+            if (one != null) {
+                sb.append(one);
+            }
+
+            address = sb.toString();
+        }
+
+        if (address != null) {
+            loc_address = address;
+        }
+
+        return address;
+    }
+
+    public static void stopLocation() {
+        Activity act = sActivity;
+        act.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                do_stopLocation();
+            }
+        });
+    }
+
+    private static void do_stopLocation() {
+        Activity act = sActivity;
+
+        LocationManager lm = (LocationManager) act
+            .getSystemService(Context.LOCATION_SERVICE);
+        lm.removeUpdates(llistener);
+    }
+
+    public static String getGPSLocation() {
+        return loc_address;
+    }
+
+    public static double[] getGPSParams() {
+        double params[] = { loc_longitude, loc_latitude, loc_altitude };
+        return params;
+    }
+
+    public static String getNetworkType() {
+        Activity act = sActivity;
+        ConnectivityManager connMgr = (ConnectivityManager) act
+            .getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
+        if (networkInfo == null) {
+            return "";
+        }
+        int nType = networkInfo.getType();
+        if (nType == ConnectivityManager.TYPE_WIFI) {
+            return "WIFI";
+        }
+
+        return "4G";
+    }
+
+    private static BroadcastReceiver mIntentReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            // TODO Auto-generated method stub
+            String action = intent.getAction();
+            if (action.equals(Intent.ACTION_BATTERY_CHANGED)) {
+                // 获取当前电量
+                int level = intent.getIntExtra("level", 0);
+                // 电量的总刻度
+                int scale = intent.getIntExtra("scale", 100);
+
+                mBatteryLevel = level * 1.0f / scale;
+            }
+        }
+    };
+
+    private static float mBatteryLevel = 1.00f;
+
+    public static float getBatteryLevel() {
+        return mBatteryLevel;
+    }
+
+    private static MediaRecorder recorder = null;
+    public static void startRecord(String filePath) {
+        if (recorder != null) {
+            recorder.reset();
+        } else {
+            recorder = new MediaRecorder();
+        }
+
+        recorder.setOnErrorListener(null);
+        recorder.setOnInfoListener(null);
+        recorder.setPreviewDisplay(null);
+
+        // 从麦克风中录音
+        recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+        // 设置编码格式为AMR
+        recorder.setAudioSamplingRate(8000);
+        recorder.setAudioChannels(1);
+        recorder.setMaxDuration(30 * 1000); // ms
+        recorder.setOutputFormat(MediaRecorder.OutputFormat.DEFAULT);
+        recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+        recorder.setOutputFile(filePath);
+        try {
+            recorder.prepare();
+            recorder.start();
+        } catch (IllegalStateException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    // 结束录音
+    public static void stopRecord() {
+        if (recorder != null) {
+            try {
+                recorder.setOnErrorListener(null);
+                recorder.setOnInfoListener(null);
+                recorder.setPreviewDisplay(null);
+                recorder.stop();//
+            } catch (IllegalStateException e) {
+                Log.i("Exception", Log.getStackTraceString(e));
+            } catch (RuntimeException e) {
+                Log.i("Exception", Log.getStackTraceString(e));
+            } catch (Exception e) {
+                Log.i("Exception", Log.getStackTraceString(e));
+            }
+            recorder.reset();
+        }
+    }
+
+    private static MediaPlayer mMediaPlayer = null;
+    public static void playVoice(String filePath) {
+        if (mMediaPlayer != null) {
+            mMediaPlayer.reset();
+        } else {
+            mMediaPlayer = new MediaPlayer();
+            // 设置一个error监听器
+            mMediaPlayer.setOnErrorListener(new MediaPlayer.OnErrorListener() {
+                public boolean onError(MediaPlayer arg0, int arg1, int arg2) {
+                    mMediaPlayer.reset();
+                    return false;
+                }
+            });
+        }
+
+        try {
+            mMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+            mMediaPlayer.setDataSource(filePath);
+            mMediaPlayer.setVolume(1.0f, 1.0f);
+            mMediaPlayer.setLooping(false);
+            mMediaPlayer.prepare();
+            mMediaPlayer.start();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static boolean isVoicePlaying() {
+        if (mMediaPlayer != null && mMediaPlayer.isPlaying()) {
+            return true;
+        }
+        return false;
+    }
+
+    private static void showUpdateDialog(final String title, final String text, final String url) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(sActivity);
+        builder.setTitle(title);
+        builder.setMessage(text);
+
+        builder.setPositiveButton(R.string.Yes, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                openUrl(url);
+                dialog.dismiss();
+            }
+        }).setNegativeButton(R.string.No, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.cancel();
+            }
+        }).show();
+    }
+
+    private static void backHandleUpdate (String content) {
+        try {
+            JSONObject res = new JSONObject(content);
+            String remoteVersionCode = res.getString("versionCode");
+            int remoteCode = Integer.parseInt(remoteVersionCode);
+            int localCode = Cocos2dxHelper.sActivity.getPackageManager().getPackageInfo(Cocos2dxHelper.sPackageName, 0).versionCode;
+
+            if (localCode < remoteCode) {
+                final String title = res.getString("versionTitle");
+                final String text = res.getString("versionLog");
+                JSONObject urls = res.getJSONObject("urls");
+                final String url = urls.getString("android");
+
+                Log.e("backHandleUpdate", title + "," + text + "," + url);
+
+                Cocos2dxActivity app =  (Cocos2dxActivity)sActivity;
+                app.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        showUpdateDialog(title, text, url);
+                    }
+                });
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void checkUpdate (String packageName) {
+        if (packageName.equals("")) {
+            return;
+        }
+
+        final String url = "http://www.cronlygames.com/autoupdate/" + packageName;
+
+        new Thread() {
+            public void run () {
+                HttpGet httpGet = new HttpGet(url);
+                HttpClient httpClient = new DefaultHttpClient();
+
+                // 发送请求
+                try {
+                    HttpResponse response = httpClient.execute(httpGet);
+                    HttpEntity e = response.getEntity();
+                    InputStream is = e.getContent();
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    int len = 0;
+                    byte buffer[] = new byte[1024];
+                    while ((len = is.read(buffer)) != -1) {
+                        baos.write(buffer, 0, len);
+                    }
+                    is.close();
+                    baos.close();
+
+                    String result = new String(baos.toByteArray());
+                    backHandleUpdate(result);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }.start();
+    }
+
+    public static void registerNotifications (String msg, String act) {
+        NotificationManager nMgr = (NotificationManager)sActivity.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nMgr == null) {
+            return;
+        }
+
+        long kOneDay = 60 * 60 * 24;
+        long n = (long)Math.floor(3.0 * Math.random());
+        long kRandomInterval = kOneDay * (1 + n) * 1000;
+
+        Intent intent = new Intent(sActivity.getIntent());
+        PendingIntent contentIntent = PendingIntent.getActivity(sActivity,
+                0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        Notification notification  = new Notification.Builder(Cocos2dxActivity.getContext())
+                .setContentTitle("New notification")
+                .setContentText(msg)
+                .setSmallIcon(R.drawable.logo)
+                .setContentIntent(contentIntent)
+                .setTicker(act)
+                .setWhen(System.currentTimeMillis() + kRandomInterval)
+                .setAutoCancel(true).getNotification();
+        nMgr.notify(0, notification);
+    }
+
+    public  static void checkNotifications () {
+        NotificationManager nMgr = (NotificationManager)sActivity.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nMgr != null) {
+            nMgr.cancelAll();
+        }
+    }
+
     // ===========================================================
     // Inner and Anonymous Classes
     // ===========================================================
@@ -807,7 +1587,7 @@ public class Cocos2dxHelper {
         return hasSoftwareKeys;
     }
 
-    //Enhance API modification end     
+    //Enhance API modification end
     public static float[] getAccelValue() {
         return Cocos2dxHelper.getAccelerometer().accelerometerValues;
     }
